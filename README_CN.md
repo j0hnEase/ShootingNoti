@@ -29,3 +29,9 @@
   - Theos 已安装
   
   - Objective-C 基础语言
+
+
+
+***
+### Apache-2.0 license ###
+[使用协议](https://github.com/j0hnEase/ShootingNoti/blob/main/LICENSE)
