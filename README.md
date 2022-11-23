@@ -33,8 +33,8 @@
   - Objective-C language basics
   
   
-  
-  
+
+***
 ### Apache-2.0 license ###
 [LICENSE](https://github.com/j0hnEase/ShootingNoti/blob/main/LICENSE)
   
