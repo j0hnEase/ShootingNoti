@@ -150,12 +150,13 @@
   
 ***
 ### 如何使用: ###
-
-  - Logos 基础语言
   
-  - Theos 已安装
+  - [Logos语法](https://theos.dev/docs/logos-syntax) 、    [其他推荐](https://www.jianshu.com/p/fbf945adb67c)
   
-  - Objective-C 基础语言
+  - [Theos 已安装](https://theos.dev/docs/installation)
+  
+  - [Objective-C 基础语言](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/ObjectiveC/Introduction/introObjectiveC.html)、[其他推介](https://www.runoob.com/ios/ios-objective-c.html)
+  
 
 
 
