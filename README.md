@@ -1,6 +1,6 @@
 # ShootingNoti : 
 
-[English](https://github.com/j0hnEase/ShootingNoti/blob/main/README.md).     [Русский]().  [中文](https://github.com/j0hnEase/ShootingNoti/blob/main/README_CN.md).
+[English](https://github.com/j0hnEase/ShootingNoti/blob/main/README.md). [Русский]().  [中文](https://github.com/j0hnEase/ShootingNoti/blob/main/README_CN.md).
 ###  It's a tweak that displays all kinds of cool notifications in the phone. ### 
 
 ***
@@ -31,6 +31,12 @@
   - Theos installed
   
   - Objective-C language basics
+  
+  
+  
+  
+### Apache-2.0 license ###
+[LICENSE](https://github.com/j0hnEase/ShootingNoti/blob/main/LICENSE)
   
   
   
