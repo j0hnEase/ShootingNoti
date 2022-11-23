@@ -150,11 +150,11 @@
 ***
 ### How to use: ###
 
-  - Logos language basics
+  - [Logos Syntax](https://theos.dev/docs/logos-syntax)
   
-  - Theos installed
+  - [Theos installed](https://theos.dev/docs/installation)
   
-  - Objective-C language basics
+  - [Objective-C language basics](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/ObjectiveC/Introduction/introObjectiveC.html)
   
   
 
