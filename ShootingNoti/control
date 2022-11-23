@@ -1,0 +1,9 @@
+Package: com.yourcompany.ShootingNoti
+Name: ShootingNoti
+Depends: mobilesubstrate
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: Only for test use, not commercial use.
+Maintainer: yourcompany
+Author: yourname
+Section: Tweaks
