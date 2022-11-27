@@ -1,7 +1,7 @@
 #import <SpringBoard/SpringBoard.h>
 #import <UIKit/UIKit.h>
 #import "src/STNWindow.h"
-
+#import <MediaRemote/MediaRemote.h>
 
 @interface SBAlertItemsController : NSObject
 -(void)activateAlertItem:(id)arg1;
@@ -70,6 +70,65 @@ void chargeNotification(CFNotificationCenterRef center,
 	}
 }
 
+
+// music
+
+@interface SBMediaController : NSObject
++ (id)sharedInstance;
+- (id)nowPlayingApplication;
+-(BOOL)_sendMediaCommand:(unsigned)arg1 options:(id)arg2;
+@end
+
+@interface SBUIController : NSObject
++ (id)sharedInstanceIfExists;
+- (void)_activateApplicationFromAccessibility:(id)arg;
+@end
+
+typedef void (^MRMediaRemoteGetNowPlayingInfoCompletion)(CFDictionaryRef information);
+typedef void (^MRMediaRemoteGetNowPlayingApplicationPIDCompletion)(int PID);
+typedef void (^MRMediaRemoteGetNowPlayingApplicationIsPlayingCompletion)(Boolean isPlaying);
+
+void MRMediaRemoteGetNowPlayingApplicationPID(dispatch_queue_t queue, MRMediaRemoteGetNowPlayingApplicationPIDCompletion completion);
+void MRMediaRemoteGetNowPlayingInfo(dispatch_queue_t queue, MRMediaRemoteGetNowPlayingInfoCompletion completion);
+void MRMediaRemoteGetNowPlayingApplicationIsPlaying(dispatch_queue_t queue, MRMediaRemoteGetNowPlayingApplicationIsPlayingCompletion completion);
+
+Boolean MRMediaRemoteSendCommand(MRCommand command, id userInfo);
+
+// music noti
+void musicNotification(CFNotificationCenterRef center,
+              void *observer,
+              CFStringRef name,
+              const void *object,
+              CFDictionaryRef userInfo)
+{
+	// NSString *nameStr = (__bridge NSString *)name;
+	// NSDictionary *dict = (__bridge NSDictionary *)object;
+	MRMediaRemoteGetNowPlayingInfo(dispatch_get_main_queue(), ^(CFDictionaryRef information) {
+		NSDictionary *dict = (__bridge NSDictionary *)information;
+        if ([dict isKindOfClass:[NSDictionary class]]) {
+            NSData *imageData = dict[@"kMRMediaRemoteNowPlayingInfoArtworkData"];
+			NSString *artId = dict[@"kMRMediaRemoteNowPlayingInfoArtworkIdentifier"];
+            UIImage *image = [UIImage imageWithData:imageData];  
+            [_myWindow showImage:image artId:artId];
+
+			// NSNumber *duration = dict[@"kMRMediaRemoteNowPlayingInfoDuration"];
+			// NSString *title = dict[@"kMRMediaRemoteNowPlayingInfoTitle"];
+			// NSNumber *identifier =  dict[@"kMRMediaRemoteNowPlayingInfoContentItemIdentifier"];
+			// NSNumber *progressTime = dict[@"kMRMediaRemoteNowPlayingInfoElapsedTime"];
+			// RLog(@"~~ duration: %@, title: %@, artId: %@ identifier: %@, progressTime: %@", duration, title, artId, identifier, progressTime);
+
+			[_myWindow showPermanentText:title];
+        }
+	});
+
+	MRMediaRemoteGetNowPlayingApplicationIsPlaying(dispatch_get_main_queue(), ^(Boolean isPlaying) {
+		RLog(@"~ isPlaying:%d", isPlaying);
+		[_myWindow hideImage:!isPlaying];
+		[_myWindow hidePermanentText:!isPlaying];
+	});
+
+}
+
 %hook SBRingerControl
 
 // mute button
@@ -108,7 +167,18 @@ void chargeNotification(CFNotificationCenterRef center,
 	_myWindow = [[STNWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
 	[_myWindow setWindowLevel:UIWindowLevelAlert+1]; // window level
 	[_myWindow makeKeyAndVisible];	
+	_myWindow.tapAction = ^{
+		SBApplication *nowPlayingApp = [[SBMediaController sharedInstance] nowPlayingApplication];
+		[[SBUIController sharedInstanceIfExists] _activateApplicationFromAccessibility:nowPlayingApp];
+	};
+	_myWindow.leftBtnAction = ^{
+		MRMediaRemoteSendCommand(kMRTogglePlayPause, nil);
 
+	};
+	_myWindow.rightBtnAction = ^{
+		// kMRPreviousTrack
+		MRMediaRemoteSendCommand(kMRNextTrack, nil);
+	};
 
 	// Airpods
 	CFNotificationCenterAddObserver(
@@ -129,7 +199,16 @@ void chargeNotification(CFNotificationCenterRef center,
 		NULL,
 		CFNotificationSuspensionBehaviorCoalesce
 	);
-
+	
+	// Music
+	CFNotificationCenterAddObserver(
+		CFNotificationCenterGetLocalCenter(),
+		NULL,
+		musicNotification,
+		CFSTR("kMRMediaRemoteNowPlayingInfoDidChangeNotification"),
+		NULL,
+		CFNotificationSuspensionBehaviorCoalesce
+	);
 }
 
 %end
