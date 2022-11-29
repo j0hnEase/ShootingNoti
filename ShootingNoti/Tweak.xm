@@ -112,7 +112,7 @@ void musicNotification(CFNotificationCenterRef center,
             [_myWindow showImage:image artId:artId];
 
 			// NSNumber *duration = dict[@"kMRMediaRemoteNowPlayingInfoDuration"];
-			// NSString *title = dict[@"kMRMediaRemoteNowPlayingInfoTitle"];
+		 	NSString *title = dict[@"kMRMediaRemoteNowPlayingInfoTitle"];
 			// NSNumber *identifier =  dict[@"kMRMediaRemoteNowPlayingInfoContentItemIdentifier"];
 			// NSNumber *progressTime = dict[@"kMRMediaRemoteNowPlayingInfoElapsedTime"];
 			// RLog(@"~~ duration: %@, title: %@, artId: %@ identifier: %@, progressTime: %@", duration, title, artId, identifier, progressTime);
