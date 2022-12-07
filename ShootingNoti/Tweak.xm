@@ -115,14 +115,12 @@ void musicNotification(CFNotificationCenterRef center,
 		 	NSString *title = dict[@"kMRMediaRemoteNowPlayingInfoTitle"];
 			// NSNumber *identifier =  dict[@"kMRMediaRemoteNowPlayingInfoContentItemIdentifier"];
 			// NSNumber *progressTime = dict[@"kMRMediaRemoteNowPlayingInfoElapsedTime"];
-			// RLog(@"~~ duration: %@, title: %@, artId: %@ identifier: %@, progressTime: %@", duration, title, artId, identifier, progressTime);
 
 			[_myWindow showPermanentText:title];
         }
 	});
 
 	MRMediaRemoteGetNowPlayingApplicationIsPlaying(dispatch_get_main_queue(), ^(Boolean isPlaying) {
-		RLog(@"~ isPlaying:%d", isPlaying);
 		[_myWindow hideImage:!isPlaying];
 		[_myWindow hidePermanentText:!isPlaying];
 	});
@@ -168,8 +166,8 @@ void musicNotification(CFNotificationCenterRef center,
 	[_myWindow setWindowLevel:UIWindowLevelAlert+1]; // window level
 	[_myWindow makeKeyAndVisible];	
 	_myWindow.tapAction = ^{
-		SBApplication *nowPlayingApp = [[SBMediaController sharedInstance] nowPlayingApplication];
-		[[SBUIController sharedInstanceIfExists] _activateApplicationFromAccessibility:nowPlayingApp];
+		SBApplication *nowPlayingApp = [[NSClassFromString(@"SBMediaController") sharedInstance] nowPlayingApplication];
+		[[NSClassFromString(@"SBUIController") sharedInstanceIfExists] _activateApplicationFromAccessibility:nowPlayingApp];
 	};
 	_myWindow.leftBtnAction = ^{
 		MRMediaRemoteSendCommand(kMRTogglePlayPause, nil);
