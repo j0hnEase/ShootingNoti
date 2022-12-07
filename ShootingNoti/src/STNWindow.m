@@ -5,10 +5,18 @@
 
 @interface STNWindow ()
 
-@property (nonatomic, strong) UIView *constantBgView;
+@property (nonatomic, assign) BOOL isAnimationing;
+@property (nonatomic, strong) UIImageView *constantBgView;
+@property (nonatomic, copy) NSString *artId;
+
 @property (nonatomic, strong) UILabel *label;
 
+@property (nonatomic, strong) UILabel *permanentLabel;
+@property (nonatomic, strong) UIButton *leftBtn;
+@property (nonatomic, strong) UIButton *rightBtn;
+
 @property (nonatomic, strong) NSTimer *timer;
+
 
 @end
 
