@@ -3,6 +3,16 @@
 #import "src/STNWindow.h"
 #import <MediaRemote/MediaRemote.h>
 
+// main window
+STNWindow *_myWindow;
+
+NSString * stringWithKey(NSString *key)
+{
+	NSBundle *tweakBundle = [NSBundle bundleWithPath:@"/Library/Application Support/Local.bundle"];
+    NSString *value = [tweakBundle localizedStringForKey:key value:@"" table:nil];
+    return value;
+} 
+
 @interface SBAlertItemsController : NSObject
 -(void)activateAlertItem:(id)arg1;
 @end
@@ -21,9 +31,6 @@
 -(float)batteryLevel;
 -(BOOL)supportsBatteryLevel;
 @end
-
-// main window
-STNWindow *_myWindow;
 
 // airpods call back
 void airpodsNotification(CFNotificationCenterRef center,
@@ -50,7 +57,7 @@ void airpodsNotification(CFNotificationCenterRef center,
 					}
 				}	
 				
-				[_myWindow showText:[NSString stringWithFormat:@"Airpods connected: %f%%", batteryLevel*100]];
+				[_myWindow showText:[NSString stringWithFormat:@"%@: %f%%", stringWithKey(@"Airpods connected"), batteryLevel*100]];
 			}
 		}
 	}
@@ -66,7 +73,7 @@ void chargeNotification(CFNotificationCenterRef center,
 {
 	if ([[UIDevice currentDevice] batteryState] == UIDeviceBatteryStateCharging) {
 		float batteryLevel = [[UIDevice currentDevice] batteryLevel];
-		[_myWindow showText:[NSString stringWithFormat:@"charing: %f%%", batteryLevel*100]];
+		[_myWindow showText:[NSString stringWithFormat:@"%@: %f%%", stringWithKey(@"Charing"), batteryLevel*100]];
 	}
 }
 
@@ -133,7 +140,7 @@ void musicNotification(CFNotificationCenterRef center,
 - (void)activateRingerHUDFromMuteSwitch:(int)arg1 
 {	
 	BOOL mute = arg1==0;
-	[_myWindow showText:mute?@"It's Silent":@"Ringer"];
+	[_myWindow showText:mute? stringWithKey(@"Silent"):stringWithKey(@"Ringer")];
 }
 
 %end
@@ -147,7 +154,7 @@ void musicNotification(CFNotificationCenterRef center,
 	if ([arg1 isKindOfClass:NSClassFromString(@"SBLowPowerAlertItem") ]) {
 
 		float batteryLevel = [[UIDevice currentDevice] batteryLevel];
-		[_myWindow showText:[NSString stringWithFormat:@"low power: %f%%", batteryLevel*100]];
+		[_myWindow showText:[NSString stringWithFormat:@"%@: %f%%", stringWithKey(@"low power"), batteryLevel*100]];
 
 	} else {
 		%orig;
