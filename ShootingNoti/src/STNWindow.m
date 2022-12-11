@@ -1,9 +1,11 @@
 #import "STNWindow.h"
+#import <CallKit/CXCallObserver.h>
+#import <CallKit/CXCall.h>
 
 #define kConstantBgSize CGSizeMake(50, 50)
 
 
-@interface STNWindow ()
+@interface STNWindow ()  <CXCallObserverDelegate>
 
 @property (nonatomic, assign) BOOL isAnimationing;
 @property (nonatomic, strong) UIImageView *constantBgView;
@@ -17,11 +19,56 @@
 
 @property (nonatomic, strong) NSTimer *timer;
 
+@property (nonatomic, assign) BOOL isIncoming;
+@property (nonatomic,strong) CXCallObserver *callObserber;
 
 @end
 
 @implementation STNWindow
 
+- (void)callObserver:(CXCallObserver *)callObserver callChanged:(CXCall *)call {
+    
+    if (!call.outgoing && !call.onHold && !call.hasConnected && !call.hasEnded) {
+        // 来电
+        self.isIncoming = YES;
+        if (self.checkLockScreenVisible) {
+            BOOL visible = self.checkLockScreenVisible();
+            if (!visible) {
+                if (self.checkIncomingName) {
+                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                        NSString *name = self.checkIncomingName();
+                        [self showPermanentText:name];
+                        [self hidePermanentText:NO];
+                    });
+                }   
+            }
+        }
+    } else if (!call.outgoing && !call.onHold && !call.hasConnected && call.hasEnded) {
+        // 来电-挂掉(未接通)
+        self.isIncoming = NO;
+        [self hidePermanentText:YES];
+    } else if (!call.outgoing && !call.onHold && call.hasConnected && !call.hasEnded) {
+        // 来电-接通
+        self.isIncoming = NO;
+        [self hidePermanentText:YES];
+    } else if (!call.outgoing && !call.onHold && call.hasConnected && call.hasEnded) {
+        // 来电-接通-挂掉
+        self.isIncoming = NO;
+        [self hidePermanentText:YES];
+    } else if (call.outgoing && !call.onHold && !call.hasConnected && !call.hasEnded) {
+        // 拨出
+
+    } else if (call.outgoing && !call.onHold && !call.hasConnected && call.hasEnded) {
+        // 拨出-挂掉(未接通)
+
+    } else if (call.outgoing && !call.onHold && call.hasConnected && !call.hasEnded) {
+        // 拨出-接通
+
+    } else if (call.outgoing && !call.onHold && call.hasConnected && call.hasEnded) {
+        // 拨出-接通-挂掉
+
+    }
+}
 
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     UIView *view = [super hitTest:point withEvent:event];
@@ -91,16 +138,21 @@
         _permanentLabel.hidden = YES;
 
         UIButton *leftBtn = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, kConstantBgSize.width, kConstantBgSize.height)];
+        [leftBtn setImage:[UIImage imageWithContentsOfFile:@"icon_laught.png"] forState:UIControlStateNormal];
         [leftBtn addTarget:self action:@selector(leftBtnPress) forControlEvents:UIControlEventTouchUpInside];
         [_permanentLabel addSubview:leftBtn];
         leftBtn.backgroundColor = [UIColor blackColor];
         self.leftBtn = leftBtn;
 
         UIButton *rightBtn = [[UIButton alloc] initWithFrame:CGRectMake(_permanentLabel.frame.size.width-kConstantBgSize.width, 0, kConstantBgSize.width, kConstantBgSize.height)];
+        [rightBtn setImage:[UIImage imageWithContentsOfFile:@"icon_laught.png"] forState:UIControlStateNormal];
         [rightBtn addTarget:self action:@selector(rightBtnPress) forControlEvents:UIControlEventTouchUpInside];
         [_permanentLabel addSubview:rightBtn];
         rightBtn.backgroundColor = [UIColor blackColor];
         self.rightBtn = rightBtn;
+
+        self.callObserber = [[CXCallObserver alloc] init];
+        [self.callObserber setDelegate:self queue:dispatch_get_main_queue()];
     }
     return self;
 }
@@ -108,25 +160,31 @@
 
 - (void)leftBtnPress
 {
-    if (self.leftBtnAction) {
-        self.leftBtnAction();
+    if (self.buttonAction) {
+        if (self.isIncoming) {
+            self.buttonAction(1);
+        } else {
+            self.buttonAction(5);
+        }
     }
-
 }
 
 - (void)rightBtnPress
 {
-    if (self.rightBtnAction) {
-        self.rightBtnAction();
+    if (self.buttonAction) {
+        if (self.isIncoming) {
+            self.buttonAction(2);
+        } else {
+            self.buttonAction(3);
+        }
     }
-
 }
 
 //MARK: -- -- --
 
 /// To show text
 - (void)showText:(NSString *)text
-{
+{   
     [UIView animateWithDuration:0.5 animations:^{
         self.label.hidden = NO;
         self.label.text = text;
