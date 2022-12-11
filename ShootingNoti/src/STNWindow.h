@@ -3,9 +3,22 @@
 
 @interface STNWindow : UIWindow
 
+/*
+    type
+
+    1: answerCall
+    2: disconnectCall
+    3: play next music
+    4: play previous music
+    5: music playOrPause
+*/ 
+@property (nonatomic, copy) void (^buttonAction) (int type);
+
 @property (nonatomic, copy) void (^tapAction) (void);
-@property (nonatomic, copy) void (^leftBtnAction) (void);
-@property (nonatomic, copy) void (^rightBtnAction) (void);
+
+@property (nonatomic, copy) BOOL (^checkLockScreenVisible) (void);
+
+@property (nonatomic, copy) NSString * (^checkIncomingName) (void);
 
 /// To show text
 - (void)showText:(NSString *)text;
