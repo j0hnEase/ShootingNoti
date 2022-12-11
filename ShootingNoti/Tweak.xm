@@ -2,6 +2,7 @@
 #import <UIKit/UIKit.h>
 #import "src/STNWindow.h"
 #import <MediaRemote/MediaRemote.h>
+#import <AudioToolbox/AudioToolbox.h>
 
 // main window
 STNWindow *_myWindow;
@@ -13,13 +14,8 @@ NSString * stringWithKey(NSString *key)
     return value;
 } 
 
-@interface SBAlertItemsController : NSObject
--(void)activateAlertItem:(id)arg1;
-@end
 
-@interface SBRingerControl : NSObject
-- (void)activateRingerHUDFromMuteSwitch:(int)arg1 ;
-@end
+// --- --- --- --- --- airpods --- --- --- --- ---
 
 @interface BluetoothManager : NSObject
 +(id)sharedInstance;
@@ -64,7 +60,8 @@ void airpodsNotification(CFNotificationCenterRef center,
 
 }
 
-// charging
+// --- --- --- --- --- charging --- --- --- --- ---
+
 void chargeNotification(CFNotificationCenterRef center,
               void *observer,
               CFStringRef name,
@@ -78,7 +75,7 @@ void chargeNotification(CFNotificationCenterRef center,
 }
 
 
-// music
+// --- --- --- --- --- music --- --- --- --- ---
 
 @interface SBMediaController : NSObject
 + (id)sharedInstance;
@@ -134,21 +131,35 @@ void musicNotification(CFNotificationCenterRef center,
 
 }
 
+// --- --- --- --- ---  mute  --- --- --- --- --- 
+
+@interface SBRingerControl : NSObject
+- (void)activateRingerHUDFromMuteSwitch:(int)arg1 ;
+@end
+
 %hook SBRingerControl
 
 // mute button
 - (void)activateRingerHUDFromMuteSwitch:(int)arg1 
 {	
 	BOOL mute = arg1==0;
+	if (mute) {
+		AudioServicesPlaySystemSound(1521);
+	}
 	[_myWindow showText:mute? stringWithKey(@"Silent"):stringWithKey(@"Ringer")];
 }
 
 %end
 
+// --- --- --- --- ---  low power  --- --- --- --- --- 
+
+@interface SBAlertItemsController : NSObject
+-(void)activateAlertItem:(id)arg1;
+@end
 
 %hook SBAlertItemsController
 
-// low power
+
 - (void)activateAlertItem:(id)arg1
 {
 	if ([arg1 isKindOfClass:NSClassFromString(@"SBLowPowerAlertItem") ]) {
@@ -163,6 +174,82 @@ void musicNotification(CFNotificationCenterRef center,
 
 %end
 
+// --- --- --- --- --- Incoming call --- --- --- --- ---
+
+@interface TUCall
+-(NSString *)displayName;
+@end
+
+@interface TUCallCenter : NSObject
++(id)sharedInstance;
+
+-(TUCall *)incomingCall;
+-(void)answerCall:(id)arg1 ;
+-(void)disconnectCall:(id)arg1;
+@end
+
+
+@interface SBSceneHandle : NSObject
+@property (nonatomic,copy,readonly) NSString * sceneIdentifier; 
+@end
+
+@interface SBDeviceApplicationSceneView : UIView
+@end
+
+%hook SBDeviceApplicationSceneView
+
+-(void)layoutSubviews
+{
+	%orig;
+  	id sceneHandle = [self performSelector:@selector(sceneHandle)];
+  	NSString *sceneID = [sceneHandle performSelector:@selector(sceneIdentifier)];
+	if (sceneID.length) {
+		if ([sceneID containsString:@"com.apple.InCallService"]) {
+			[self performSelector:@selector(p_for:) withObject:self];
+		}
+	} 
+}
+
+%new
+- (void)p_for:(UIView *)view
+{
+	if ([view isKindOfClass:NSClassFromString(@"_UIScenePresentationView")]) {
+		if (view.frame.size.height <= 150) {
+			view.hidden = YES;
+		} else {
+			view.hidden = NO;
+		}
+	}
+
+	if (view.subviews.count) {
+		for (UIView *v in view.subviews) {
+			[self performSelector:@selector(p_for:) withObject:v];
+		}
+	}
+}
+
+%end
+
+@interface SBInCallBannerSceneBackgroundView : UIView
+-(void)layoutSubviews;
+@end
+
+%hook SBInCallBannerSceneBackgroundView
+-(void)layoutSubviews
+{
+	%orig;
+    self.hidden = YES;
+}
+%end
+
+@interface SBLockScreenManager : NSObject
++(id)sharedInstance;
+-(BOOL)isLockScreenVisible;
+@end
+
+
+// --- --- --- --- --- SpringBoard --- --- --- --- ---
+
 %hook SpringBoard
 
 - (void)applicationDidFinishLaunching:(id)application {
@@ -176,13 +263,72 @@ void musicNotification(CFNotificationCenterRef center,
 		SBApplication *nowPlayingApp = [[NSClassFromString(@"SBMediaController") sharedInstance] nowPlayingApplication];
 		[[NSClassFromString(@"SBUIController") sharedInstanceIfExists] _activateApplicationFromAccessibility:nowPlayingApp];
 	};
-	_myWindow.leftBtnAction = ^{
-		MRMediaRemoteSendCommand(kMRTogglePlayPause, nil);
-
+	
+	/*
+		type
+		1: answerCall
+		2: disconnectCall
+		3: play next music
+		4: play previous music
+		5: music playOrPause
+	*/ 
+	_myWindow.buttonAction = ^(int type) {
+		switch (type) {
+			case 1:
+			{
+				id sh = [NSClassFromString(@"TUCallCenter") sharedInstance];
+      			id call = [sh performSelector:@selector(incomingCall)];
+      			if (sh && call) {
+					[sh performSelector:@selector(answerCall:) withObject:call]; 
+				}
+			}
+            	break;
+			case 2:
+			{
+				id sh = [NSClassFromString(@"TUCallCenter") sharedInstance];
+      			id call = [sh performSelector:@selector(incomingCall)];
+      			if (sh && call) {
+					[sh performSelector:@selector(disconnectCall:) withObject:call]; 
+				}
+			}
+            	break;
+			case 3:
+			{
+				MRMediaRemoteSendCommand(kMRPreviousTrack, nil);
+			}
+            	break;
+			case 4:
+			{
+				MRMediaRemoteSendCommand(kMRNextTrack, nil);
+			}
+            	break;
+			case 5:
+			{
+				MRMediaRemoteSendCommand(kMRTogglePlayPause, nil);
+			}
+            	break;
+            
+        	default:
+            	break;
+    	}
 	};
-	_myWindow.rightBtnAction = ^{
-		// kMRPreviousTrack
-		MRMediaRemoteSendCommand(kMRNextTrack, nil);
+	_myWindow.checkIncomingName = ^{
+		id sh = [NSClassFromString(@"TUCallCenter") sharedInstance];
+      	id call = [sh performSelector:@selector(incomingCall)];
+      	if (sh && call) {
+        	NSString *s = [call performSelector:@selector(displayName)]; 
+			return s;
+      	}
+		return @"";
+	};
+	_myWindow.checkLockScreenVisible = ^{
+		id sh = [NSClassFromString(@"SBLockScreenManager") sharedInstance];
+		if (sh) {
+			BOOL v = [sh performSelector:@selector(isLockScreenVisible)];
+			return v;
+		} else {
+			return YES;
+		}
 	};
 
 	// Airpods
