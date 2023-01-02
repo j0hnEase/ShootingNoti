@@ -1,6 +1,7 @@
 #import "STNWindow.h"
 #import <CallKit/CXCallObserver.h>
 #import <CallKit/CXCall.h>
+#import <AudioToolbox/AudioToolbox.h>
 
 #define kConstantBgSize CGSizeMake(50, 50)
 
@@ -9,6 +10,8 @@
 
 @property (nonatomic, assign) BOOL isAnimationing;
 @property (nonatomic, strong) UIImageView *constantBgView;
+@property (nonatomic, strong) UIView *circleView;
+
 @property (nonatomic, copy) NSString *artId;
 
 @property (nonatomic, strong) UILabel *label;
@@ -18,6 +21,8 @@
 @property (nonatomic, strong) UIButton *rightBtn;
 
 @property (nonatomic, strong) NSTimer *timer;
+@property (nonatomic, strong) NSTimer *timer2;
+@property (nonatomic, assign) int callTime;
 
 @property (nonatomic, assign) BOOL isIncoming;
 @property (nonatomic,strong) CXCallObserver *callObserber;
@@ -34,27 +39,42 @@
         if (self.checkLockScreenVisible) {
             BOOL visible = self.checkLockScreenVisible();
             if (!visible) {
-                if (self.checkIncomingName) {
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                        NSString *name = self.checkIncomingName();
-                        [self showPermanentText:name];
-                        [self hidePermanentText:NO];
-                    });
-                }   
+                _callTime = 0;
+                [_timer2 invalidate];
+                _timer2 = [NSTimer timerWithTimeInterval:1.0 repeats:NO block:^(NSTimer * _Nonnull timer) {
+                    self.callTime ++;
+                    [self showPermanentText:[NSString stringWithFormat:@"%d", self.callTime]];
+                    [self hidePermanentText:NO];
+                }];
+                [[NSRunLoop currentRunLoop] addTimer:_timer2 forMode:NSRunLoopCommonModes];
+
+                // if (self.checkIncomingName) {
+                //     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                //         NSString *name = self.checkIncomingName();
+                //         [self showPermanentText:name];
+                //         [self hidePermanentText:NO];
+                //     });
+                // }   
             }
         }
     } else if (!call.outgoing && !call.onHold && !call.hasConnected && call.hasEnded) {
         // 来电-挂掉(未接通)
         self.isIncoming = NO;
         [self hidePermanentText:YES];
+        _callTime = 0;
+        [_timer2 invalidate];
     } else if (!call.outgoing && !call.onHold && call.hasConnected && !call.hasEnded) {
         // 来电-接通
         self.isIncoming = NO;
         [self hidePermanentText:YES];
+        _callTime = 0;
+        [_timer2 invalidate];
     } else if (!call.outgoing && !call.onHold && call.hasConnected && call.hasEnded) {
         // 来电-接通-挂掉
         self.isIncoming = NO;
         [self hidePermanentText:YES];
+        _callTime = 0;
+        [_timer2 invalidate];
     } else if (call.outgoing && !call.onHold && !call.hasConnected && !call.hasEnded) {
         // 拨出
 
@@ -73,7 +93,6 @@
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     UIView *view = [super hitTest:point withEvent:event];
     if (_constantBgView && view == _constantBgView) {
-        [self p_animations];
         return view;
     }
 
@@ -82,26 +101,6 @@
     }
     return nil;
 }
-
-- (void)p_animations
-{
-    if (self.isAnimationing) return;
-    self.isAnimationing = YES;
-
-    if (self.tapAction) {
-        self.tapAction();
-    }
-
-    [UIView animateWithDuration:0.24 animations:^{
-        self.constantBgView.transform = CGAffineTransformMakeScale(1.2, 1.2);
-    } completion:^(BOOL finished) {
-        [UIView animateWithDuration:0.25 animations:^{
-            self.constantBgView.transform = CGAffineTransformIdentity;
-            self.isAnimationing = NO;
-        }];
-    }];
-}
-
 
 - (instancetype)initWithFrame:(CGRect)frame
 {
@@ -117,7 +116,20 @@
         _constantBgView.userInteractionEnabled = YES;
         _constantBgView.contentMode = UIViewContentModeScaleAspectFill;
         [self addSubview:_constantBgView];
-        
+
+        UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(singleTap)];
+        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPress:)];
+        [_constantBgView addGestureRecognizer:singleTap];
+        [_constantBgView addGestureRecognizer:longPress];
+
+
+        _circleView = [[UIView alloc] initWithFrame:CGRectMake(23, 0, 4, 4)];
+        _circleView.backgroundColor = [UIColor whiteColor];
+        _circleView.layer.cornerRadius = 2;
+        _circleView.layer.masksToBounds = YES;
+        [_constantBgView addSubview:_circleView];
+        _circleView.hidden = YES;
+
         _label = [[UILabel alloc] initWithFrame:CGRectMake(10, size.height-150, size.width-10-70, kConstantBgSize.height)];
         _label.backgroundColor = [UIColor blackColor];
         _label.layer.cornerRadius = 10;
@@ -157,6 +169,41 @@
     return self;
 }
 
+- (void)p_animations
+{
+    if (self.isAnimationing) return;
+    self.isAnimationing = YES;
+    AudioServicesPlaySystemSound(1519);
+
+    [UIView animateWithDuration:0.24 animations:^{
+        self.constantBgView.transform = CGAffineTransformMakeScale(1.2, 1.2);
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.25 animations:^{
+            self.constantBgView.transform = CGAffineTransformIdentity;
+            self.isAnimationing = NO;
+        }];
+    }];
+}
+
+- (void)singleTap
+{
+    [self p_animations];
+
+    if (self.tapAction) {
+        self.tapAction();
+    }
+
+}
+
+- (void)longPress:(UILongPressGestureRecognizer*)sender
+{
+    if (sender.state == UIGestureRecognizerStateBegan){
+        [self p_animations];
+
+
+
+    }
+}
 
 - (void)leftBtnPress
 {
@@ -230,5 +277,9 @@
     _permanentLabel.hidden = hide;
 }
 
+- (void)showCircleView:(BOOL)show
+{
+    _circleView.hidden = !show;
+}
 
 @end
