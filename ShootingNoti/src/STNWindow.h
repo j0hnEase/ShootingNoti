@@ -29,6 +29,7 @@
 - (void)showPermanentText:(NSString *)text;
 - (void)hidePermanentText:(BOOL)hide;
 
+- (void)showCircleView:(BOOL)show;
 
 @end
 
