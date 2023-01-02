@@ -3,6 +3,7 @@
 #import "src/STNWindow.h"
 #import <MediaRemote/MediaRemote.h>
 #import <AudioToolbox/AudioToolbox.h>
+#import <notify.h>
 
 // main window
 STNWindow *_myWindow;
@@ -245,8 +246,156 @@ void musicNotification(CFNotificationCenterRef center,
 @interface SBLockScreenManager : NSObject
 +(id)sharedInstance;
 -(BOOL)isLockScreenVisible;
+-(void)_authenticationStateChanged:(id)arg1;
 @end
 
+// --- --- --- --- --- Lock State --- --- --- --- ---
+
+UIView *_fakeCircleView;
+ 
+%hook SBLockScreenManager
+- (void)_authenticationStateChanged:(id)arg1 
+{
+	if ([arg1 isKindOfClass:NSClassFromString(@"NSConcreteNotification")]) {
+        id userInfo = [arg1 valueForKey:@"userInfo"];
+        if ([userInfo isKindOfClass:[NSDictionary class]]) {
+			id t = userInfo[@"SBFUserAuthenticationStateWasAuthenticatedKey"];
+			if ([t isEqual:@(0)]) {
+				// unlock
+				_fakeCircleView.hidden = YES;
+				[_myWindow showText:@"unlock"];
+
+			} else {
+				// lock
+				_fakeCircleView.hidden = NO;
+				[_myWindow showText:@"lock"];
+			}
+        }
+    }
+
+	%orig;
+}
+
+%end
+
+@interface CSCoverSheetViewController : UIViewController
+
+@end
+%hook CSCoverSheetViewController
+
+- (void)loadView
+{
+	%orig;
+    
+	if (!_fakeCircleView) {
+		CGSize size = [UIScreen mainScreen].bounds.size;
+        
+        UIView *circleView = [[UIView alloc] initWithFrame:CGRectMake(size.width-61, size.height-150, 50, 50)];
+		circleView.backgroundColor = [UIColor yellowColor];
+		circleView.layer.cornerRadius = 4;
+		circleView.layer.masksToBounds = YES;
+		[self.view addSubview:circleView];
+		_fakeCircleView = circleView;
+	}
+}
+%end
+
+// --- --- --- --- --- Camera Using --- --- --- --- ---
+
+// camera using
+void closeCameraNotification(CFNotificationCenterRef center,
+              void *observer,
+              CFStringRef name,
+              const void *object,
+              CFDictionaryRef userInfo)
+{
+	[_myWindow showCircleView:NO];
+}
+void openCameraNotification(CFNotificationCenterRef center,
+              void *observer,
+              CFStringRef name,
+              const void *object,
+              CFDictionaryRef userInfo)
+{
+	[_myWindow showCircleView:YES];
+}
+
+%hook AVCaptureSession
+
+-(void)startRunning {
+	// open camera
+	notify_post("com.test.open.camera");
+	%orig;
+}
+
+-(void)stopRunning {
+	// close camera
+	notify_post("com.test.close.camera");
+	%orig;
+}
+
+-(void)_setInterrupted:(BOOL)arg1 withReason:(int)arg2 
+{
+	if (arg1) {
+		// close camera
+		notify_post("com.test.close.camera");
+	} else 
+	{
+		notify_post("com.test.open.camera");
+	}
+	%orig;
+}
+
+%end
+
+@interface RCAnalyticsUtilities : NSObject
+
++(void)sendDidCaptureNewRecording;
++(void)sendNewRecordingDuration:(double)arg1;
+@end
+%hook RCAnalyticsUtilities
+
++(void)sendDidCaptureNewRecording
+{
+	// start record
+	notify_post("com.test.open.camera");
+	%orig;
+}
+
++(void)sendNewRecordingDuration:(double)arg1 
+{
+	// end record
+	notify_post("com.test.close.camera");
+	%orig;
+}
+
+%end
+
+@interface SBMainSwitcherViewController : NSObject
+-(void)_applicationDidExit:(id)arg1 ;
+@end
+
+%hook SBMainSwitcherViewController
+-(void)_applicationDidExit:(id)arg1 
+{
+    if ([arg1 isKindOfClass:NSClassFromString(@"NSConcreteNotification")]) {
+        id object = [arg1 valueForKey:@"object"];
+        if ([object isKindOfClass:NSClassFromString(@"SBApplication")]) {
+            if ([object respondsToSelector:@selector(bundleIdentifier)]) {
+                NSString *str = [object performSelector:@selector(bundleIdentifier)];
+                if (str.length) {
+                    if ([str isEqualToString:@"com.apple.VoiceMemos"] || [str isEqualToString:@"com.apple.camera"]) {
+						// kill a app
+						notify_post("com.test.close.camera");
+                    }
+                }
+            }
+        }
+    }
+
+    %orig;
+}
+%end
 
 // --- --- --- --- --- SpringBoard --- --- --- --- ---
 
@@ -261,7 +410,9 @@ void musicNotification(CFNotificationCenterRef center,
 	[_myWindow makeKeyAndVisible];	
 	_myWindow.tapAction = ^{
 		SBApplication *nowPlayingApp = [[NSClassFromString(@"SBMediaController") sharedInstance] nowPlayingApplication];
-		[[NSClassFromString(@"SBUIController") sharedInstanceIfExists] _activateApplicationFromAccessibility:nowPlayingApp];
+		if (nowPlayingApp) {
+			[[NSClassFromString(@"SBUIController") sharedInstanceIfExists] _activateApplicationFromAccessibility:nowPlayingApp];
+		}
 	};
 	
 	/*
@@ -359,6 +510,24 @@ void musicNotification(CFNotificationCenterRef center,
 		CFSTR("kMRMediaRemoteNowPlayingInfoDidChangeNotification"),
 		NULL,
 		CFNotificationSuspensionBehaviorCoalesce
+	);
+
+	// Camera Using
+	CFNotificationCenterAddObserver(
+		CFNotificationCenterGetDarwinNotifyCenter(),
+		NULL,
+		openCameraNotification,
+		CFSTR("com.test.open.camera"),
+		NULL,
+		CFNotificationSuspensionBehaviorDeliverImmediately
+	);
+	CFNotificationCenterAddObserver(
+		CFNotificationCenterGetDarwinNotifyCenter(),
+		NULL,
+		closeCameraNotification,
+		CFSTR("com.test.close.camera"),
+		NULL,
+		CFNotificationSuspensionBehaviorDeliverImmediately
 	);
 }
 
